@@ -88,10 +88,10 @@ all: lpsdp
 .PHONY: lpsdpG
 
 lpsdpM:
-	g++ $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LPSDP_MOSEK_IL_B)  sdpsolver.cpp -o lpsdpM
+	g++ $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LPSDP_MOSEK_IL_B)  lpsdp.cpp -o lpsdpM
 
 lpsdpG:
-	g++ $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LPSDP_GUROBI_IL_B)  sdpsolver.cpp -o lpsdp
+	g++ $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LPSDP_GUROBI_IL_B)  lpsdp.cpp -o lpsdp
 
 lpsdp: lpsdpM lpsdpG
 
