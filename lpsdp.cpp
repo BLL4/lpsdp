@@ -21,7 +21,42 @@ than csdp or MOSEK can handle. This uses less memory.
 Written by Bernard Lidicky 
 
 
+- TODO:
+  
+  - Test if the solution works - i.e. remake and resolve the problem with smaller set of equations.
+    Just as a debug.
+
+  - maybe make copies with ~ for the files    
+  - see if it is possible to do automatic restart of the program attempted 
+
+Here is how to compule it on different machines that Bernard has access to:
+
+## MAC MOSEK
+g++ -O3 ../sdpsolver.cpp -I/Users/bernard/mosek/tools/platform/osxaarch64/h/  -L/Users/bernard/mosek/tools/platform/osxaarch64/bin/  -std=c++20  -llapack -lblas  -o lpsdpM -lmosek64 -DMOSEK
+
+## MAC GUROBI
+g++ -O3 ../sdpsolver.cpp -I/Library/gurobi1201/macos_universal2/include/  -L/Library/gurobi1201/macos_universal2/lib/  -std=c++20  -lgurobi_c++ -lgurobi120  -llapack -lblas  -o lpsdp -DGUROBI
+
+## Alderaan Cluster GUROBI
+g++  -O3 ../sdpsolver.cpp  -I/home/lidickyb/gurobi1201/linux64/include/ -L/home/lidickyb/gurobi1201/linux64/lib/ -std=c++2a  -lgurobi_c++ -lgurobi120 -I/home/lidickyb/lib/ -lopenblas -o lpsdp  -fopenmp -DGUROBI -g
+# Alderan  ClusterMOSEK
+g++  -O3 ../sdpsolver.cpp  -I/home/lidickyb/mosek/current/tools/platform/linux64x86/h  -L/home/lidickyb/mosek/current/tools/platform/linux64x86/bin  -std=c++2a  -lopenblas  -o lpsdpM -lmosek64 -DMOSEK  -fopenmp -g
+
+g++  -O3 ../sdpsolver.cpp  -I/home/lidickyb/mosek/10.2/tools/platform/linux64x86/h  -L/home/lidickyb/mosek/10.2/tools/platform/linux64x86/bin  -std=c++2a  -lopenblas  -o lpsdpM10 -lmosek64 -DMOSEK  -fopenmp -g
+
+
+
+### KAM (Linux machines)
+g++  -O3 ../sdpsolver.cpp  -I/home/bernard/bin/gurobi/linux64/include -L/home/bernard/bin/gurobi/linux64/lib -std=c++2a  -lgurobi_c++ -lgurobi110 -I/home/lidickyb/lib/ -llapack -lblas -o lpsdp -fopenmp -DGUROBI -g
+
+g++  -O3 ../sdpsolver.cpp -I/Library/gurobi1201/macos_universal2/include/ -L/Library/gurobi1201/macos_universal2/lib/  -I/home/lidickyb/gurobi1201/linux64/include/ -L/home/lidickyb/gurobi1201/linux64/lib/ -std=c++2a  -lgurobi_c++ -lgurobi120 -I/home/lidickyb/lib/ -lopenblas -o lpsdp -fopenmp 
+
+
+
+icx -ipo -xHost -fp-model=fast ../sdpsolver.cpp -qopenmp  -o b.out  -m64   -qmkl -lm  -O3  -I/home/lidickyb/gurobi1201/linux64/include/ -L/home/lidickyb/gurobi1201/linux64/lib/ -lgurobi_c++ -lgurobi120  
+
 Usage: Use -h for help
+
 
 */
 
@@ -62,6 +97,40 @@ Usage: Use -h for help
 #if !defined(GUROBI) && !defined(MOSEK)
 #error "Either GUROBI or MOSEK must be defined to compile this code. Use -DGUROBI or -DMOSEK during compilation."
 #endif
+
+
+#if !defined(LP_INT_64) && !defined(LP_INT_32) && !defined(LP_INT_16) && !defined(LP_DOUBLE) && !defined(LP_FLOAT)  
+#define LP_INT_32
+#endif
+
+
+#ifdef LP_INT_64
+#define LP_INT
+typedef long long lp_integer;
+typedef lp_integer lp_value;
+#endif
+
+#ifdef LP_INT_32
+#define LP_INT
+typedef int lp_integer;
+typedef lp_integer lp_value;
+#endif
+
+#ifdef LP_INT_16
+#define LP_INT
+typedef short int lp_integer;
+typedef lp_integer lp_value;
+#endif
+
+
+#ifdef LP_DOUBLE
+typedef double lp_value;
+#endif
+
+#ifdef LP_FLOAT
+typedef float lp_value;
+#endif
+
 
 
 // Declare LAPACK functions (ensure these are linked correctly during compilation)
@@ -340,20 +409,32 @@ string print_duration(double seconds)
     return ss.str();
 }
 
+#ifdef LP_INT
 // We want all entries in the SDP to be integers. Of then the input is not
 // integers so we try to rescale the input
-int rescale_number(double x, double constants_rescale, bool kill_if_fail = true) {
+lp_integer rescale_number(double x, double constants_rescale, bool kill_if_fail = true) {
     // Rescale and ensure the number is an integer
     double x_float = x * constants_rescale;
-    int x_rounded = std::round(x_float);
 
-    if (std::abs(x_float - x_rounded) > 1e-5) {
+    if (x_float >=  numeric_limits<lp_integer>::max())
+    {
+        cerr << "Rescaled value " << x_float << " is larger than " << numeric_limits<lp_integer>::max() << endl;
+#ifndef LP_INT_64
+        cerr << "Try to recompile with -DLP_INT_64" << endl;
+#endif        
+        assert(0);
+    }
+
+
+    lp_integer x_rounded = std::round(x_float);
+
+    if (std::abs(x_float - x_rounded) > 1e-4) {
         std::cerr.precision(15);
         std::cerr << "Rescaling did not work for x=" << x
                   << ", result was " << x_rounded
                   << ", which is not precise for " << x_float << std::endl;
         std::cerr << "Try a different rescaling of the semidefinite program. Argument -s " << std::endl;
-        double frac_x = abs(x_float) - int(abs(x_float));
+        double frac_x = abs(x_float) - lp_integer(abs(x_float));
         std::cerr << "Hint: 1/" << abs(frac_x) << " = " << abs(1/frac_x) << std::endl;
         if (kill_if_fail) {
             std::exit(EXIT_FAILURE);
@@ -362,7 +443,14 @@ int rescale_number(double x, double constants_rescale, bool kill_if_fail = true)
 
     return x_rounded;
 }
+#else
+lp_value rescale_number(double x, double constants_rescale, bool kill_if_fail = true) {
+    // Rescale and ensure the number is an integer
+    double x_float = x * constants_rescale;
 
+    return x_float;
+}
+#endif
 
 // This is for holding the semidefinite program in memory. 
 // We need to be efficient
@@ -371,7 +459,7 @@ struct SDPBlock
     long long constraintID;
     std::vector<short int> rows;    // we try to save space a little on the rows and columns
     std::vector<short int> columns;
-    std::vector<int> values;
+    std::vector<lp_value> values;
     std::unordered_map<int, int> diagonal; // the diagonal blocks may be quite long
 };
 
@@ -381,10 +469,10 @@ struct SDPProblem
 
     long long num_constraints;
     int num_blocks;
-    int constants_rescale;
+    lp_value constants_rescale;
     
     std::vector<int> block_sizes;
-    std::vector<int> constants;
+    std::vector<lp_value> constants;
     std::vector<double> t_coef;
     std::vector<std::vector<SDPBlock*> > blocks_all; // For all indexes
     std::vector<std::vector<SDPBlock*> > blocks_compressed;  // only the ones non-empty
@@ -409,7 +497,7 @@ struct Constraint
     bool from_input = false; // If the constraint was in the original model in input file
 };
 
-bool read_problem_file(SDPProblem &p, const std::string &filename, int constants_rescale = 1) {
+bool read_problem_file(SDPProblem &p, const std::string &filename, lp_value constants_rescale = 1) {
 
     cout << "Loading file " << filename << " with scale " << constants_rescale << " starts at " <<  timestamp() << endl;
 
@@ -449,7 +537,7 @@ bool read_problem_file(SDPProblem &p, const std::string &filename, int constants
     // Read constants 
     p.constants.reserve(p.num_constraints);
     double value_d;
-    for (int i = 0; i < p.num_constraints; ++i) {
+    for (long long i = 0; i < p.num_constraints; ++i) {
         file >> value_d;
         p.constants.push_back(rescale_number(value_d, constants_rescale));
     }
@@ -470,7 +558,7 @@ bool read_problem_file(SDPProblem &p, const std::string &filename, int constants
         int row;
         int column;
         double value_d;
-        int value;
+        lp_value value;
 
         file >> constraint >> block_num >> row >> column >> value_d;
 
@@ -938,7 +1026,7 @@ int solve_using_LP(
     int num_blocks = p.num_blocks;
     long long num_constraints = p.num_constraints;
 
-    std::vector<int> &constants = p.constants;
+    std::vector<lp_value> &constants = p.constants;
 
     
     string certificate_file = p.filename + ".lpsdp.certificate.txt";
@@ -1020,11 +1108,19 @@ int solve_using_LP(
 
     // Objective function: Minimize sum(constants[i] * y[i])
     GRBLinExpr objective = 0;
+    int non_zeros=0;
     for (long long i = 0; i < num_constraints; i++) {
         if (constants[i] != 0)
+        {
             objective += constants[i] * y[i];
+            non_zeros++;
+        }
     }
     model.setObjective(objective, GRB_MINIMIZE);
+    if (verbose)
+    {
+        cerr << "Added " << non_zeros << " non-zero entries in the objective function" << endl;
+    }
 
     // Initial constraint: sum(t_coef[i] * y[i]) == 1
     GRBLinExpr sum_constraint = 0;
@@ -1141,6 +1237,10 @@ int solve_using_LP(
                     string name = "MC" + to_string(model_constraint);
                     //constraints_in_model[name] = constraint;
                     model.addConstr(exprs[constraintID] >= 0, name);
+                    if (verbose)
+                    {
+                        cerr << "added constraint  " << exprs[constraintID] << endl;
+                    }
                     model_constraint++;
 
                     Constraint* c = new Constraint();
@@ -1190,6 +1290,11 @@ int solve_using_LP(
         }
     }
 
+    if (verbose)
+    {
+        cerr << "Added " << model_constraint-1  << " linear constraints from the model" << endl;
+    }
+
      
     int dconstraints = 1;
 
@@ -1204,7 +1309,7 @@ int solve_using_LP(
             MSK_appendcons(task, checkpoint_constraints.size());
             #endif
 
-            #pragma omp parallel for
+            //#pragma omp parallel for
             for (int i = 0; i < (int)checkpoint_constraints.size(); ++i)
             {
                 Constraint* c = checkpoint_constraints[i];
@@ -1343,6 +1448,7 @@ int solve_using_LP(
             }
             else
             {
+                cerr << "Cannot find constaint with ID " << i << " in the list " << endl;
                 cerr << "Something is wrong with constraint ID " << i << " " << constraints_in_model_by_ID.size() << endl;
                 continue;
             }
@@ -1790,6 +1896,25 @@ int main(int argc, char *argv[])
 #else
     std::cout << "Unknown compiler" << std::endl;
 #endif
+
+#ifdef LP_DOUBLE
+    std::cout << "Values stored as double ";
+#endif
+#ifdef LP_FLOAT
+    std::cout << "Values stored as float ";
+#endif
+#ifdef LP_INT_64
+    std::cout << "Values stored as long long ";
+#endif
+#ifdef LP_INT_16
+    std::cout << "Values stored as short int ";
+#endif
+#ifdef LP_INT_32
+    std::cout << "Values stored as int ";
+#endif
+    std::cout << "using " << sizeof(lp_value) << " bytes"<< endl;
+
+
 
 #ifdef GUROBI
     int major, minor, technical;
