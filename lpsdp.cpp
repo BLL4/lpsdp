@@ -1241,7 +1241,6 @@ int solve_using_LP(
                     {
                         cerr << "added constraint  " << exprs[constraintID] << endl;
                     }
-                    model_constraint++;
 
                     Constraint* c = new Constraint();
                     c->blockID = blockID;
@@ -1251,6 +1250,8 @@ int solve_using_LP(
 
                     constraints_in_model[name] = c;
                     constraints_in_model_by_ID[model_constraint] = c;
+
+                    model_constraint++;
                 }
             }
 #endif
@@ -1273,7 +1274,6 @@ int solve_using_LP(
             for (int constraintID = 0; constraintID < -blocksize; constraintID++)
             {
                 string name = "MC" + to_string(model_constraint);
-                model_constraint++;
 
                 Constraint* c = new Constraint();
                 c->blockID = blockID;
@@ -1282,7 +1282,10 @@ int solve_using_LP(
                 c->from_input = true;
 
                 constraints_in_model[name] = c;
+                //cerr << "Adding model_constraint " << model_constraint << endl;
                 constraints_in_model_by_ID[model_constraint] = c;
+
+                model_constraint++;
             }
             
             //model_constraint += - blocksize;
@@ -1579,10 +1582,12 @@ int solve_using_LP(
         std::vector<double> duals(numcon);
         MSK_gety(task, MSK_SOL_ITR, duals.data());
         {
+            //cerr << "numcon=" << numcon << endl;
             for (int i = 1; i < numcon; i++) {
                 //std::cout.precision(16);
                 //cout << "Dual value for constraint " << i << ": " << duals[i] << endl;
                 Constraint *c = constraints_in_model_by_ID[i];
+                assert(c != NULL);
                 c->dual_weight = duals[i];
                 c->active = c->dual_weight > 1e-8;
                 if (c->active) 

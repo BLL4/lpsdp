@@ -34,7 +34,7 @@ LPSDP_MOSEK_IL :=  -I$(MOSEK_HOME)/h  -L$(MOSEK_HOME)/bin
 
 ifeq ($(UNAME_S),Linux)
     target := gcc
-    LPDSP_GUROBI :=  -O3  -std=c++2a  -lgurobi_c++ -lgurobi110 -I/home/lidickyb/lib/ -llapack -lblas -o lpsdp -fopenmp -DGUROBI -g
+    LPSDP_GUROBI :=  -O3  -std=c++2a  -lgurobi_c++ -lgurobi110 -I/home/lidickyb/lib/ -llapack -lblas -o lpsdp -fopenmp -DGUROBI -g
     LPSDP_MOSEK  :=  -O3   -std=c++2a  -lopenblas  -o lpsdpM -lmosek64 -DMOSEK  -fopenmp -g
 
     # This is for bernard :-)
@@ -63,8 +63,10 @@ ifeq ($(UNAME_S),Darwin)
       CC := g++-15  -arch arm64 
     endif
 
-    LPSDP_GUROBI := -O3  -std=c++20  -lgurobi_c++ -lgurobi120  -llapack -lblas   -DGUROBI
-    LPSDP_MOSEK  := -O3  -std=c++20  -llapack -lblas  -lmosek64 -DMOSEK
+    LPSDP_GUROBI := -DLP_DOUBLE  -O3  -std=c++20  -lgurobi_c++ -lgurobi120  -llapack -lblas   -DGUROBI
+    LPSDP_MOSEK  := -DLP_DOUBLE -O3  -std=c++20  -llapack -lblas  -lmosek64 -DMOSEK
+    LPSDP_MOSEK  := -DLP_DOUBLE -g  -std=c++20  -llapack -lblas  -lmosek64 -DMOSEK
+    # LPSDP_MOSEK  := -O3  -std=c++20  -llapack -lblas  -lmosek64 -DMOSEK
 
     LPSDP_MOSEK_IL_B   :=  -I/Users/bernard/mosek/tools/platform/osxaarch64/h/  -L/Users/bernard/mosek/tools/platform/osxaarch64/bin/ -I/Users/lidicky/mosek/tools/platform/osxaarch64/h/ -L/Users/lidicky/mosek/tools/platform/osxaarch64/bin/ 
     LPSDP_GUROBI_IL_B  := -I/Library/gurobi1201/macos_universal2/include/  -L/Library/gurobi1201/macos_universal2/lib/
