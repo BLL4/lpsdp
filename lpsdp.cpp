@@ -460,7 +460,7 @@ struct SDPBlock
     std::vector<short int> rows;    // we try to save space a little on the rows and columns
     std::vector<short int> columns;
     std::vector<lp_value> values;
-    std::unordered_map<int, int> diagonal; // the diagonal blocks may be quite long
+    std::unordered_map<int, lp_value> diagonal; // the diagonal blocks may be quite long
 };
 
 struct SDPProblem
@@ -572,7 +572,7 @@ bool read_problem_file(SDPProblem &p, const std::string &filename, lp_value cons
             break;
         }
 
-        //cout << "X " << constraint << " " << block_num << " " << row << " " << column << " " <<  value_d << endl;
+        // cout << "X " << constraint << " " << block_num << " " << row << " " << column << " " <<  value_d << endl;
 
         if (constraint == 0)
         {
@@ -1722,7 +1722,7 @@ int solve_using_LP(
         stringstream ss_log_line;
 
         ss_log_line << std::setprecision(16);
-        ss_log_line << "Upper bound: " << sdp_upper_bound 
+        ss_log_line << "Bound: " << sdp_upper_bound 
              << std::setprecision(2) << std::fixed
             // << ", dconstraints: " << dconstraints             
              << ", Constraints: " << total_constraints
