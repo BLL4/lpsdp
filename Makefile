@@ -5,6 +5,8 @@ CC := "g++"
 LIB_BLASLAPACK =  -llapack -lblas
 #LIB_BLASLAPACK =  -lopenblas
 
+$(warning lapack and blas is $LIB_BLASLAPACK  )
+
 # This is some attempt to locate GUROBI and MOSEK installations
 # It may be best to hardcode these paths if the automatic detection fails
 
@@ -17,15 +19,14 @@ ifeq ($(GUROBI_HOME),)
   endif
 endif
 
-    #GUROBI_VER = $(shell basename $(GUROBI_HOME) | sed 's/gurobi//' | sed 's/\(.\)\(.\)\(.\)/\1\2/')
-    GUROBI_VER = $(shell echo $(GUROBI_HOME) | sed 's/.*gurobi//' | sed 's/\(.\)\(.\)\(.\).*/\1\2\3/')
-    #GUROBI_VER = $(shell echo $(GUROBI_HOME) | sed 's/.*gurobi//' )
-    ifeq ($(GUROBI_VER),)
-       GUROBI_VER = 130
-       $(warning Could not auto-detect Gurobi version, using default: $(GUROBI_VER))
-    endif
-    $(warning Gurobi home: $(GUROBI_HOME))
-    $(warning Gurobi version: $(GUROBI_VER))
+GUROBI_VER = $(shell echo $(GUROBI_HOME) | sed 's/.*gurobi//' | sed 's/\(.\)\(.\)\(.\).*/\1\2\3/')
+ifeq ($(GUROBI_VER),)
+   GUROBI_VER = 130
+   $(warning Could not auto-detect Gurobi version, using default: $(GUROBI_VER))
+endif
+$(warning Gurobi home $(GUROBI_HOME))
+$(warning Gurobi version $(GUROBI_VER))
+
 
 MOSEK_HOME ?= $(shell echo $$MOSEKHOME)
 ifeq ($(MOSEK_HOME),)
@@ -35,6 +36,7 @@ ifeq ($(MOSEK_HOME),)
     MOSEK_HOME := $(shell dirname $$(dirname $$(realpath $$(which mosek 2>/dev/null))) )
   endif
 endif
+$(warning Mosek home $(MOSEK_HOME))
 
 
 # Location of include and lib for GUROBI
@@ -45,8 +47,8 @@ LPSDP_MOSEK_IL :=  -I$(MOSEK_HOME)/h  -L$(MOSEK_HOME)/bin
 
 ifeq ($(UNAME_S),Linux)
     target := gcc
-    LPSDP_GUROBI := -DGUROBI -O3  -std=c++2a  -lgurobi_c++ -lgurobi$(GUROBI_VER) -llapack -lblas -fopenmp -g
-    LPSDP_MOSEK  := -DMOSEK  -O3  -std=c++2a  -lopenblas  -lmosek64  -fopenmp -g
+    LPSDP_GUROBI := -DGUROBI -O3  -std=c++2a  -lgurobi_c++ -lgurobi$(GUROBI_VER) -fopenmp -g
+    LPSDP_MOSEK  := -DMOSEK  -O3  -std=c++2a  -lmosek64  -fopenmp -g
 endif
 
 ifeq ($(UNAME_S),Darwin)
@@ -64,8 +66,8 @@ ifeq ($(UNAME_S),Darwin)
       CC := g++-15  -arch arm64 
     endif
 
-    LPSDP_GUROBI := -DLP_DOUBLE -O3  -std=c++20  -lgurobi_c++ -lgurobi120  -llapack -lblas   -DGUROBI
-    LPSDP_MOSEK  := -DLP_DOUBLE -O3  -std=c++20  -llapack -lblas  -lmosek64 -DMOSEK
+    LPSDP_GUROBI := -DGUROBI -O3  -std=c++20  -lgurobi_c++ -lgurobi$(GUROBI_VER) 
+    LPSDP_MOSEK  := -DMOSEK  -O3  -std=c++20  -lmosek64 
 
 endif
 
@@ -78,12 +80,12 @@ all: lpsdp
 .PHONY: lpsdpG
 
 lpsdpM:
-	g++ lpsdp.cpp  $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL)  -o lpsdpM
-	g++ lpsdp.cpp  -DLP_DOUBLE $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL)  -o lpsdpMd
+	g++ lpsdp.cpp  $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LIB_BLASLAPACK)  -o lpsdpM
+	g++ lpsdp.cpp  -DLP_DOUBLE $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LIB_BLASLAPACK)  -o lpsdpMd
 
 lpsdpG:
-	g++ lpsdp.cpp $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL)   -o lpsdpG
-	g++ lpsdp.cpp -DLP_DOUBLE $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL)  -o lpsdpGd
+	g++ lpsdp.cpp $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LIB_BLASLAPACK)  -o lpsdpG
+	g++ lpsdp.cpp -DLP_DOUBLE $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LIB_BLASLAPACK) -o lpsdpGd
 
 
 lpsdp: lpsdpM lpsdpG
