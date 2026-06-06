@@ -94,6 +94,10 @@ Usage: Use -h for help
 #endif
 
 
+// #define DEBUG_PRINT
+
+//#define LP_DOUBLE
+
 #if !defined(GUROBI) && !defined(MOSEK)
 #error "Either GUROBI or MOSEK must be defined to compile this code. Use -DGUROBI or -DMOSEK during compilation."
 #endif
@@ -434,8 +438,8 @@ lp_integer rescale_number(double x, double constants_rescale, bool kill_if_fail 
                   << ", result was " << x_rounded
                   << ", which is not precise for " << x_float << std::endl;
         std::cerr << "Try a different rescaling of the semidefinite program. Argument -s " << std::endl;
-        double frac_x = abs(x_float) - lp_integer(abs(x_float));
-        std::cerr << "Hint: 1/" << abs(frac_x) << " = " << abs(1/frac_x) << std::endl;
+        double frac_x = std::abs(x_float) - lp_integer(std::abs(x_float));
+        std::cerr << "Hint: 1/" << std::abs(frac_x) << " = " << std::abs(1/frac_x) << std::endl;
         if (kill_if_fail) {
             std::exit(EXIT_FAILURE);
         }
@@ -548,7 +552,8 @@ bool read_problem_file(SDPProblem &p, const std::string &filename, lp_value cons
     }
     p.blocks_compressed.resize(p.num_blocks);
 
-    p.t_coef.resize(p.num_constraints);
+    //cerr << "XX t_coef Resizing to " << p.num_constraints << endl;
+    p.t_coef.resize(p.num_constraints, 0);
 
 
     while (file.good()) 
@@ -562,17 +567,18 @@ bool read_problem_file(SDPProblem &p, const std::string &filename, lp_value cons
 
         file >> constraint >> block_num >> row >> column >> value_d;
 
-        if (!file.good())
+        if (!file.good() || file.eof())
         {
             break;
         }
 
         if( value_d == 0)
         {
-            break;
+            cerr << "Found 0 at " << constraint << " " << block_num << " " << row << " " << column << " " << value_d << endl;
+            continue;
         }
 
-        // cout << "X " << constraint << " " << block_num << " " << row << " " << column << " " <<  value_d << endl;
+        //cout << "X " << constraint << " " << block_num << " " << row << " " << column << " " <<  value_d << endl;
 
         if (constraint == 0)
         {
@@ -594,8 +600,13 @@ bool read_problem_file(SDPProblem &p, const std::string &filename, lp_value cons
             {   
                 //cout << "t_coef for p.num_constraints == column " << value_d << endl;
                 //p.t_coef[constraint] = abs(value_d)/constants_rescale;
-                p.t_coef[constraint] = abs(value_d);
-                //cout << p.t_coef[constraint] << endl;
+                p.t_coef[constraint] = std::abs(value_d);
+                //cerr << "t_coef[constraint]: " << constraint << " "  << p.t_coef[constraint] << endl;
+            
+            }
+            else
+            {
+                //cerr << " ignoring " << constraint << " " << block_num << " " << row << " " << column << endl;
             }
             continue;
         }
@@ -646,6 +657,7 @@ bool read_problem_file(SDPProblem &p, const std::string &filename, lp_value cons
         {
             block->diagonal[row] = value;
         } 
+
     }
 
     file.close();
@@ -717,7 +729,9 @@ bool process_SDP_block(Constraint *new_constraint, std::vector<SDPBlock*>& block
     
     if (block.empty()) return false;
     
-    //cout << "Starting block " << blockID << " of size " << blocksize << endl;
+#ifdef DEBUG_PRINT    
+    cout << "Processing block " << blockID << " of size " << blocksize << endl;
+#endif
 
     // Construct the matrix A
     std::vector<double> A(blocksize * blocksize, 0.0);
@@ -786,6 +800,15 @@ bool process_SDP_block(Constraint *new_constraint, std::vector<SDPBlock*>& block
     }
     double min_eigenvalue = eigvals[min_index];
 
+#ifdef DEBUG_PRINT    
+    cout << "Eigenvalues: ";
+    for (int i = 0; i < blocksize; ++i) {
+        cout << " " << eigvals[i];
+    }
+    cout << "\nMinimum " << min_eigenvalue << endl;
+#endif
+
+
     //std::vector<double> new_constraint(blocksize);
     //for (int i = 0; i < blocksize; ++i) {
     //    //evec[i] = A[i * blocksize + min_index];
@@ -799,14 +822,18 @@ bool process_SDP_block(Constraint *new_constraint, std::vector<SDPBlock*>& block
     //}
     //cout << endl;
 
+    //if (min_eigenvalue < -0.000000001) {
     if (min_eigenvalue < 0) {
+
+//#ifdef DEBUG_PRINT
+//        cout << "Minimum " << min_eigenvalue << endl;
+//#endif
 
         new_constraint->v.resize(blocksize);
         for (int i = 0; i < blocksize; ++i) {
             //evec[i] = A[i * blocksize + min_index];
             new_constraint->v[i] = A[min_index * blocksize + i];
         }        
-
 
         get_ds_from_block(block, yrange, new_constraint->d, new_constraint->v);
         new_constraint->blockID = blockID;
@@ -832,7 +859,7 @@ void saveConstraintsTXT(const unordered_map<string, Constraint* >& constraints, 
         file << c->blockID << " ";  // Write blockID
         file << c->v.size();        // Write size of vector
         for (double d : c->v) {
-            if (abs(d) < 0.0000000001) file << " 0";
+            if (std::abs(d) < 0.0000000001) file << " 0";
             else file << " " << d;      // Write each value in vector
         }
         file << "\n";      
@@ -866,7 +893,7 @@ void saveActiveConstraintsTXT(const vector< Constraint* > &constraints_in_model,
             file << c->blockID << " ";  // Write blockID
             file << c->v.size();        // Write size of vector
             for (double d : c->v) {
-                if (abs(d) < 0.0000000001) file << " 0";
+                if (std::abs(d) < 0.0000000001) file << " 0";
                 else file << " " << d;      // Write each value in vector
             }
             file << "\n";              // New line for each constraint
@@ -946,7 +973,7 @@ void saveCertificateConstraintsTXT(const unordered_map<string, Constraint* >& co
                 file << c->blockID+1 << " ";  // Write blockID
                 file << c->v.size();        // Write size of vector
                 for (double d : c->v) {
-                    if (abs(d) < 0.0000000001) file << " 0";
+                    if (std::abs(d) < 0.0000000001) file << " 0";
                     else file << " " << d;      // Write each value in vector
                 }
             }
@@ -1112,6 +1139,7 @@ int solve_using_LP(
     for (long long i = 0; i < num_constraints; i++) {
         if (constants[i] != 0)
         {
+            // cerr << " Adding " << i << " " <<  constants[i] << endl;
             objective += constants[i] * y[i];
             non_zeros++;
         }
@@ -1125,6 +1153,7 @@ int solve_using_LP(
     // Initial constraint: sum(t_coef[i] * y[i]) == 1
     GRBLinExpr sum_constraint = 0;
     for (long long i = 0; i < num_constraints; i++) {
+        // cerr << " Adding sum1: " << i << " " <<  p.t_coef[i] << endl;
         sum_constraint += p.t_coef[i] * y[i];
         //sum_constraint += 1 * y[i];
     }
@@ -1223,7 +1252,10 @@ int solve_using_LP(
             {
                 if (p.blocks_all[blockID][i] != nullptr)
                 {
-                    for (auto& [cid, coef] : p.blocks_all[blockID][i]->diagonal) {
+                    //for (auto& [cid, coef] : p.blocks_all[blockID][i]->diagonal) {
+                    for (size_t cid = 0; cid < p.blocks_all[blockID][i]->diagonal.size(); cid++) {
+                        lp_value coef = p.blocks_all[blockID][i]->diagonal[cid];
+
                         exprs[cid] += coef * y[i];
                         exprs_nonempty[cid] = 1;
                     }
@@ -1251,7 +1283,9 @@ int solve_using_LP(
                     constraints_in_model[name] = c;
                     constraints_in_model_by_ID[model_constraint] = c;
 
-                    model_constraint++;
+                    //cerr << "Addind contraints id " << model_constraint << endl;
+
+                    model_constraint++;                    
                 }
             }
 #endif
@@ -1261,7 +1295,10 @@ int solve_using_LP(
             {
                 if (p.blocks_all[blockID][i] != nullptr)
                 {
-                    for (auto& [cid, coef] : p.blocks_all[blockID][i]->diagonal) {
+                    //for (auto& [cid, coef] : p.blocks_all[blockID][i]->diagonal) {
+                    for (size_t cid = 0; cid < p.blocks_all[blockID][i]->diagonal.size(); cid++) {
+                        lp_value coef = p.blocks_all[blockID][i]->diagonal[cid];
+
                         MSK_putaij(task, model_constraint+cid, i, coef);
                     }
                 }
@@ -1282,7 +1319,6 @@ int solve_using_LP(
                 c->from_input = true;
 
                 constraints_in_model[name] = c;
-                //cerr << "Adding model_constraint " << model_constraint << endl;
                 constraints_in_model_by_ID[model_constraint] = c;
 
                 model_constraint++;
@@ -1553,7 +1589,7 @@ int solve_using_LP(
             vector<GRBConstr> to_remove;
             for (int i = 0; i < model.get(GRB_IntAttr_NumConstrs); ++i) {
                 GRBConstr constr = model.getConstr(i);
-                if (abs(constr.get(GRB_DoubleAttr_Slack)) > drop_threshold) {
+                if (std::abs(constr.get(GRB_DoubleAttr_Slack)) > drop_threshold) {
                     string name = constr.get(GRB_StringAttr_ConstrName);
                     if (name[0] == 'G') {
                         constraints_in_model.erase(name);
@@ -1582,12 +1618,10 @@ int solve_using_LP(
         std::vector<double> duals(numcon);
         MSK_gety(task, MSK_SOL_ITR, duals.data());
         {
-            //cerr << "numcon=" << numcon << endl;
             for (int i = 1; i < numcon; i++) {
                 //std::cout.precision(16);
                 //cout << "Dual value for constraint " << i << ": " << duals[i] << endl;
                 Constraint *c = constraints_in_model_by_ID[i];
-                assert(c != NULL);
                 c->dual_weight = duals[i];
                 c->active = c->dual_weight > 1e-8;
                 if (c->active) 
@@ -1722,7 +1756,7 @@ int solve_using_LP(
         stringstream ss_log_line;
 
         ss_log_line << std::setprecision(16);
-        ss_log_line << "Bound: " << sdp_upper_bound 
+        ss_log_line << "Upper bound: " << sdp_upper_bound 
              << std::setprecision(2) << std::fixed
             // << ", dconstraints: " << dconstraints             
              << ", Constraints: " << total_constraints
@@ -1954,6 +1988,8 @@ int main(int argc, char *argv[])
     bool lp_output = false;
     bool restart_if_failed = true;
     bool print_lp = false;
+    bool restart_calculation = true;
+
 
     // Parse arguments manually
     for (int i = 1; i < argc; ++i) {
@@ -1974,6 +2010,7 @@ Options:
   -lo                          Enable LP solver output (default no output)
   -ml, --memory-limit <MB>     Set memory limit in MB (default: no limit)
   -lp                          Print the LP to a file .lpsdp.lp (default: do not print)
+  -nr                          No Restart in a loop if fail
 )";
             return 0;
         }
@@ -2007,6 +2044,8 @@ Options:
         } else if (arg == "-allc") {
             all_constraints_checkpoint = true;
         } else if (arg == "-ac") {
+        } else if (arg == "-nr") {
+            restart_calculation  = false;
         } else {
             filename = arg;  // Assume the first positional argument is the filename
         }
@@ -2075,7 +2114,7 @@ Options:
             return 1;
         }
 
-    } while (restart_if_failed && restart_counter < 5);
+    } while (restart_calculation && restart_if_failed && restart_counter < 5);
 
 
     return 0;    

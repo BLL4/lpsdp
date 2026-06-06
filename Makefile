@@ -90,10 +90,13 @@ all: lpsdp
 .PHONY: lpsdpG
 
 lpsdpM:
-	g++ $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LPSDP_MOSEK_IL_B)  lpsdp.cpp -o lpsdpM
+	g++ lpsdp.cpp  $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LPSDP_MOSEK_IL_B)  -o lpsdpM
+	g++ lpsdp.cpp  -DLP_DOUBLE $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LPSDP_MOSEK_IL_B)  -o lpsdpMd
 
 lpsdpG:
-	g++ $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LPSDP_GUROBI_IL_B)  lpsdp.cpp -o lpsdp
+	g++ lpsdp.cpp $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LPSDP_GUROBI_IL_B)   -o lpsdpG
+	g++ lpsdp.cpp -DLP_DOUBLE $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LPSDP_GUROBI_IL_B)   -o lpsdpGd
+
 
 lpsdp: lpsdpM lpsdpG
 
