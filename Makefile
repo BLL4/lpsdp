@@ -2,6 +2,9 @@ UNAME_S := $(shell uname -s)
 
 CC := "g++"
 
+LIB_BLASLAPACK =  -llapack -lblas
+#LIB_BLASLAPACK =  -lopenblas
+
 # This is some attempt to locate GUROBI and MOSEK installations
 # It may be best to hardcode these paths if the automatic detection fails
 
@@ -12,11 +15,15 @@ ifeq ($(GUROBI_HOME),)
     #GUROBI_HOME := $(dir $(dir $(GUROBI_BIN)))
     GUROBI_HOME := $(shell dirname $$(dirname $$(realpath $$(which gurobi_cl 2>/dev/null))) )
   endif
-    GUROBI_VER = $(shell basename $(GUROBI_HOME) | sed 's/gurobi//' | sed 's/\(.\)\(.\)\(.\)/\1\2/')
+    #GUROBI_VER = $(shell basename $(GUROBI_HOME) | sed 's/gurobi//' | sed 's/\(.\)\(.\)\(.\)/\1\2/')
+    GUROBI_VER = $(shell echo $(GUROBI_HOME) | sed 's/.*gurobi//' | sed 's/\(.\)\(.\)\(.\).*/\1\2\3/')
+    #GUROBI_VER = $(shell echo $(GUROBI_HOME) | sed 's/.*gurobi//' )
     ifeq ($(GUROBI_VER),)
        GUROBI_VER = 130
        $(warning Could not auto-detect Gurobi version, using default: $(GUROBI_VER))
     endif
+    $(warning Gurobi home: $(GUROBI_HOME))
+    $(warning Gurobi version: $(GUROBI_VER))
 endif
 
 MOSEK_HOME ?= $(shell echo $$MOSEKHOME)
