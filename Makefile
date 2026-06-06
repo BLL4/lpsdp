@@ -12,6 +12,11 @@ ifeq ($(GUROBI_HOME),)
     #GUROBI_HOME := $(dir $(dir $(GUROBI_BIN)))
     GUROBI_HOME := $(shell dirname $$(dirname $$(realpath $$(which gurobi_cl 2>/dev/null))) )
   endif
+    GUROBI_VER = $(shell basename $(GUROBI_HOME) | sed 's/gurobi//' | sed 's/\(.\)\(.\)\(.\)/\1\2/')
+    ifeq ($(GUROBI_VER),)
+       GUROBI_VER = 130
+       $(warning Could not auto-detect Gurobi version, using default: $(GUROBI_VER))
+    endif
 endif
 
 MOSEK_HOME ?= $(shell echo $$MOSEKHOME)
@@ -24,32 +29,20 @@ ifeq ($(MOSEK_HOME),)
 endif
 
 
-
 # Location of include and lib for GUROBI
 LPSDP_GUROBI_IL := -I$(GUROBI_HOME)/include/ -L$(GUROBI_HOME)/lib
 
 # Location of incldue and lib for MOSEK
 LPSDP_MOSEK_IL :=  -I$(MOSEK_HOME)/h  -L$(MOSEK_HOME)/bin
 
-
 ifeq ($(UNAME_S),Linux)
     target := gcc
-    LPSDP_GUROBI :=  -O3  -std=c++2a  -lgurobi_c++ -lgurobi110 -I/home/lidickyb/lib/ -llapack -lblas -o lpsdp -fopenmp -DGUROBI -g
-    LPSDP_MOSEK  :=  -O3   -std=c++2a  -lopenblas  -o lpsdpM -lmosek64 -DMOSEK  -fopenmp -g
-
-    # This is for bernard :-)
-    LPSDP_GUROBI_IL_B :=  -I/home/bernard/bin/gurobi/linux64/include -L/home/bernard/bin/gurobi/linux64/lib
-    LPSDP_MOSEK_IL_B  :=  -I/home/bernard/mosek/current/tools/platform/linux64x86/h  -L/home/bernard/mosek/current/tools/platform/linux64x86/bin 
+    LPSDP_GUROBI := -DGUROBI -O3  -std=c++2a  -lgurobi_c++ -lgurobi$(GUROBI_VER) -llapack -lblas -fopenmp -g
+    LPSDP_MOSEK  := -DMOSEK  -O3  -std=c++2a  -lopenblas  -lmosek64  -fopenmp -g
 endif
 
 ifeq ($(UNAME_S),Darwin)
     CC := g++
-    ifneq (, $(shell which g++-mp-10))
-      CC := g++-mp-10
-    endif
-    ifneq (, $(shell which g++-11))
-      CC := g++-11
-    endif
     ifneq (, $(shell which g++-12))
       CC := g++-12 -arch arm64 
     endif
@@ -63,24 +56,11 @@ ifeq ($(UNAME_S),Darwin)
       CC := g++-15  -arch arm64 
     endif
 
-    LPSDP_GUROBI := -DLP_DOUBLE  -O3  -std=c++20  -lgurobi_c++ -lgurobi120  -llapack -lblas   -DGUROBI
+    LPSDP_GUROBI := -DLP_DOUBLE -O3  -std=c++20  -lgurobi_c++ -lgurobi120  -llapack -lblas   -DGUROBI
     LPSDP_MOSEK  := -DLP_DOUBLE -O3  -std=c++20  -llapack -lblas  -lmosek64 -DMOSEK
-    LPSDP_MOSEK  := -DLP_DOUBLE -g  -std=c++20  -llapack -lblas  -lmosek64 -DMOSEK
-    # LPSDP_MOSEK  := -O3  -std=c++20  -llapack -lblas  -lmosek64 -DMOSEK
 
-    LPSDP_MOSEK_IL_B   :=  -I/Users/bernard/mosek/tools/platform/osxaarch64/h/  -L/Users/bernard/mosek/tools/platform/osxaarch64/bin/ -I/Users/lidicky/mosek/tools/platform/osxaarch64/h/ -L/Users/lidicky/mosek/tools/platform/osxaarch64/bin/ 
-    LPSDP_GUROBI_IL_B  := -I/Library/gurobi1201/macos_universal2/include/  -L/Library/gurobi1201/macos_universal2/lib/
 endif
 
-
-ifeq ($(findstring alderaan,$(shell hostname)),alderaan)
-    $(info Hostname contains 'alderaan')
-    LPSDP_MOSEK  :=  -O3    -std=c++2a  -lopenblas  -lmosek64 -DMOSEK  -fopenmp -g
-    LPSDP_GUROBI := -O3   -std=c++2a  -lgurobi_c++ -lgurobi120 -I/home/lidickyb/lib/ -lopenblas  -fopenmp -DGUROBI -g
-
-    LPSDP_GUROBI_IL_B := -I/home/lidickyb/gurobi1201/linux64/include/ -L/home/lidickyb/gurobi1201/linux64/lib/
-    LPSDP_MOSEK_IL_B := -I/home/lidickyb/mosek/current/tools/platform/linux64x86/h  -L/home/lidickyb/mosek/current/tools/platform/linux64x86/bin 
-endif
 
 all: lpsdp
 
@@ -90,12 +70,12 @@ all: lpsdp
 .PHONY: lpsdpG
 
 lpsdpM:
-	g++ lpsdp.cpp  $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LPSDP_MOSEK_IL_B)  -o lpsdpM
-	g++ lpsdp.cpp  -DLP_DOUBLE $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LPSDP_MOSEK_IL_B)  -o lpsdpMd
+	g++ lpsdp.cpp  $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL)  -o lpsdpM
+	g++ lpsdp.cpp  -DLP_DOUBLE $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL)  -o lpsdpMd
 
 lpsdpG:
-	g++ lpsdp.cpp $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LPSDP_GUROBI_IL_B)   -o lpsdpG
-	g++ lpsdp.cpp -DLP_DOUBLE $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LPSDP_GUROBI_IL_B)   -o lpsdpGd
+	g++ lpsdp.cpp $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL)   -o lpsdpG
+	g++ lpsdp.cpp -DLP_DOUBLE $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL)  -o lpsdpGd
 
 
 lpsdp: lpsdpM lpsdpG
