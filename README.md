@@ -22,7 +22,7 @@ This is closer to an actual instance we needed.
 
 - `test.sh` Attempts to run all three solvers on both instances. It also includes a run of CSDP if present in the path. 
 
-## C++ version
+## C++ implementation
 
 The most efficient version. This version is under development. 
 Requirements
@@ -33,7 +33,7 @@ Either one will work. Both offer free academic licenses.
 - openMP
 
 
-## Python version
+## Python verimplementationsion
 
 The python version is slightly more effective than SageMath version. 
 It is the second implementation. 
@@ -43,7 +43,7 @@ In order to run it, one needs to
 
 *This version is not under active development. It is here as an example.*
 
-## SageMath version
+## SageMath implementation
 
 The SageMath version was the first implementation. 
 
