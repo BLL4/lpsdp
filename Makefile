@@ -19,7 +19,7 @@ ifeq ($(GUROBI_HOME),)
   endif
 endif
 
-GUROBI_VER = $(shell echo $(GUROBI_HOME) | sed 's/.*gurobi//' | sed 's/\(.\)\(.\)\(.\).*/\1\2\3/')
+GUROBI_VER = $(shell echo $(GUROBI_HOME) | sed 'sX.*gurobi[/]*XX' | sed 's/\.//g' | sed 's/\(.\)\(.\)\(.\).*/\1\2\3/')
 ifeq ($(GUROBI_VER),)
    GUROBI_VER = 130
    $(warning Could not auto-detect Gurobi version, using default: $(GUROBI_VER))
