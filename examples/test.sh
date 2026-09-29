@@ -1,19 +1,19 @@
 
 echo "Testing lpsdp ... on Mantel. Solution is -1.5 "
 
-../lpsdp manteln_n3_scale_3.dat-s  -i 5 -dc 
+../lpsdpG mantel_n3_scale_3.dat-s  -i 5 -dc 
 
-../lpsdpM manteln_n3_scale_3.dat-s  -i 5 -dc 
+../lpsdpM mantel_n3_scale_3.dat-s  -i 5 -dc 
 
-python3 ../lpsdp.py manteln_n3_scale_3.dat-s -dc
+python3 ../lpsdp.py mantel_n3_scale_3.dat-s -dc
 
-sage ../lpsdp.sage manteln_n3_scale_3.dat-s 
+sage ../lpsdp.sage mantel_n3_scale_3.dat-s 
 
-csdp manteln_n3_scale_3.dat-s  manteln_n3_scale_3.dat-s.result | tee manteln_n3_scale_3.dat-s.csdp.log
+csdp mantel_n3_scale_3.dat-s  mantel_n3_scale_3.dat-s.result | tee mantel_n3_scale_3.dat-s.csdp.log
 
 echo "Testing lpsdp ... on Tetrahedron. Solution using csdp is -0.56166722"
 
-../lpsdp tetrahedron_n6.dat-s   -dc -s 100 -i 100
+../lpsdpG tetrahedron_n6.dat-s   -dc -s 100 -i 100
 
 ../lpsdpM tetrahedron_n6.dat-s  -dc  -s 100 -i 100
 
