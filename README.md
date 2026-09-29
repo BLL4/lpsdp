@@ -33,7 +33,7 @@ Either one will work. Both offer free academic licenses.
 - openMP
 
 
-## Python verimplementationsion
+## Python implementation
 
 The python version is slightly more effective than SageMath version. 
 It is the second implementation. 
