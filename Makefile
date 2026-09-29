@@ -1,11 +1,60 @@
 UNAME_S := $(shell uname -s)
 
-CC := "g++"
+CXX := "g++"
 
-LIB_BLASLAPACK =  -llapack -lblas
+
+ifndef LIB_BLASLAPACK
+
+HAVE_ACCELERATE := $(shell \
+	printf 'int main(){return 0;}\n' | \
+	$(CXX) -x c++ -o /tmp/blas_test_$$$$ - \
+		-framework Accelerate \
+		>/dev/null 2>&1 && echo yes)
+
+ifeq ($(HAVE_ACCELERATE),yes)
+
+LIB_BLASLAPACK := -framework Accelerate
+$(info Using Accelerate)
+
+else
+
+HAVE_OPENBLAS := $(shell \
+	printf 'int main(){return 0;}\n' | \
+	$(CXX) -x c++ -o /tmp/blas_test_$$$$ - \
+		-lopenblas \
+		>/dev/null 2>&1 && echo yes)
+
+ifeq ($(HAVE_OPENBLAS),yes)
+
+LIB_BLASLAPACK := -lopenblas
+$(info Using OpenBLAS)
+
+else
+
+HAVE_LAPACK := $(shell \
+	printf 'int main(){return 0;}\n' | \
+	$(CXX) -x c++ -o /tmp/blas_test_$$$$ - \
+		-llapack -lblas \
+		>/dev/null 2>&1 && echo yes)
+
+ifeq ($(HAVE_LAPACK),yes)
+
+LIB_BLASLAPACK := -llapack -lblas
+$(info Using LAPACK + BLAS)
+
+else
+
+$(error Could not find Accelerate, OpenBLAS, or LAPACK/BLAS)
+
+endif
+endif
+endif
+endif
+
+#LIB_BLASLAPACK =  -llapack -lblas
 #LIB_BLASLAPACK =  -lopenblas
 
-$(warning lapack and blas is $LIB_BLASLAPACK  )
+$(warning lapack and blas is $(LIB_BLASLAPACK)  )
 
 # This is some attempt to locate GUROBI and MOSEK installations
 # It may be best to hardcode these paths if the automatic detection fails
@@ -24,8 +73,8 @@ ifeq ($(GUROBI_VER),)
    GUROBI_VER = 130
    $(warning Could not auto-detect Gurobi version, using default: $(GUROBI_VER))
 endif
-$(warning Gurobi home $(GUROBI_HOME))
-$(warning Gurobi version $(GUROBI_VER))
+$(warning Gurobi home: $(GUROBI_HOME))
+$(warning Gurobi version: $(GUROBI_VER))
 
 
 MOSEK_HOME ?= $(shell echo $$MOSEKHOME)
@@ -36,7 +85,7 @@ ifeq ($(MOSEK_HOME),)
     MOSEK_HOME := $(shell dirname $$(dirname $$(realpath $$(which mosek 2>/dev/null))) )
   endif
 endif
-$(warning Mosek home $(MOSEK_HOME))
+$(warning Mosek home: $(MOSEK_HOME))
 
 
 # Location of include and lib for GUROBI
@@ -74,19 +123,26 @@ endif
 
 all: lpsdp
 
+lpsdpM:
+	$(CXX) lpsdp.cpp  $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LIB_BLASLAPACK)  -o lpsdpM
+	$(CXX) lpsdp.cpp  -DLP_DOUBLE $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LIB_BLASLAPACK)  -o lpsdpMd
+
+lpsdpG:
+	$(CXX) lpsdp.cpp $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LIB_BLASLAPACK)  -o lpsdpG
+	$(CXX) lpsdp.cpp -DLP_DOUBLE $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LIB_BLASLAPACK) -o lpsdpGd
+
+
+lpsdp: lpsdpM lpsdpG
+m: lpsdpM
+mosek: lpsdpM
+g: lpsdpG
+gurobi: lpsdpG
+
 
 .PHONY: lpsdp
 .PHONY: lpsdpM
 .PHONY: lpsdpG
-
-lpsdpM:
-	g++ lpsdp.cpp  $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LIB_BLASLAPACK)  -o lpsdpM
-	g++ lpsdp.cpp  -DLP_DOUBLE $(LPSDP_MOSEK) $(LPSDP_MOSEK_IL) $(LIB_BLASLAPACK)  -o lpsdpMd
-
-lpsdpG:
-	g++ lpsdp.cpp $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LIB_BLASLAPACK)  -o lpsdpG
-	g++ lpsdp.cpp -DLP_DOUBLE $(LPSDP_GUROBI) $(LPSDP_GUROBI_IL) $(LIB_BLASLAPACK) -o lpsdpGd
-
-
-lpsdp: lpsdpM lpsdpG
-
+.PHONY: m
+.PHONY: g
+.PHONY: mosek
+.PHONY: gurobi

@@ -21,42 +21,7 @@ than csdp or MOSEK can handle. This uses less memory.
 Written by Bernard Lidicky 
 
 
-- TODO:
-  
-  - Test if the solution works - i.e. remake and resolve the problem with smaller set of equations.
-    Just as a debug.
-
-  - maybe make copies with ~ for the files    
-  - see if it is possible to do automatic restart of the program attempted 
-
-Here is how to compule it on different machines that Bernard has access to:
-
-## MAC MOSEK
-g++ -O3 ../sdpsolver.cpp -I/Users/bernard/mosek/tools/platform/osxaarch64/h/  -L/Users/bernard/mosek/tools/platform/osxaarch64/bin/  -std=c++20  -llapack -lblas  -o lpsdpM -lmosek64 -DMOSEK
-
-## MAC GUROBI
-g++ -O3 ../sdpsolver.cpp -I/Library/gurobi1201/macos_universal2/include/  -L/Library/gurobi1201/macos_universal2/lib/  -std=c++20  -lgurobi_c++ -lgurobi120  -llapack -lblas  -o lpsdp -DGUROBI
-
-## Alderaan Cluster GUROBI
-g++  -O3 ../sdpsolver.cpp  -I/home/lidickyb/gurobi1201/linux64/include/ -L/home/lidickyb/gurobi1201/linux64/lib/ -std=c++2a  -lgurobi_c++ -lgurobi120 -I/home/lidickyb/lib/ -lopenblas -o lpsdp  -fopenmp -DGUROBI -g
-# Alderan  ClusterMOSEK
-g++  -O3 ../sdpsolver.cpp  -I/home/lidickyb/mosek/current/tools/platform/linux64x86/h  -L/home/lidickyb/mosek/current/tools/platform/linux64x86/bin  -std=c++2a  -lopenblas  -o lpsdpM -lmosek64 -DMOSEK  -fopenmp -g
-
-g++  -O3 ../sdpsolver.cpp  -I/home/lidickyb/mosek/10.2/tools/platform/linux64x86/h  -L/home/lidickyb/mosek/10.2/tools/platform/linux64x86/bin  -std=c++2a  -lopenblas  -o lpsdpM10 -lmosek64 -DMOSEK  -fopenmp -g
-
-
-
-### KAM (Linux machines)
-g++  -O3 ../sdpsolver.cpp  -I/home/bernard/bin/gurobi/linux64/include -L/home/bernard/bin/gurobi/linux64/lib -std=c++2a  -lgurobi_c++ -lgurobi110 -I/home/lidickyb/lib/ -llapack -lblas -o lpsdp -fopenmp -DGUROBI -g
-
-g++  -O3 ../sdpsolver.cpp -I/Library/gurobi1201/macos_universal2/include/ -L/Library/gurobi1201/macos_universal2/lib/  -I/home/lidickyb/gurobi1201/linux64/include/ -L/home/lidickyb/gurobi1201/linux64/lib/ -std=c++2a  -lgurobi_c++ -lgurobi120 -I/home/lidickyb/lib/ -lopenblas -o lpsdp -fopenmp 
-
-
-
-icx -ipo -xHost -fp-model=fast ../sdpsolver.cpp -qopenmp  -o b.out  -m64   -qmkl -lm  -O3  -I/home/lidickyb/gurobi1201/linux64/include/ -L/home/lidickyb/gurobi1201/linux64/lib/ -lgurobi_c++ -lgurobi120  
-
 Usage: Use -h for help
-
 
 */
 
@@ -1632,78 +1597,6 @@ int solve_using_LP(
             }
         }
 
-        /*
-        double *xx = (double *)calloc(numvar, sizeof(double));
-        MSK_getxx(task, MSK_SOL_BAS, xx);
-
-        
-        for (int i = 0; i < numcon; i++) {
-            double lhs = 0.0;
-            MSKint32t nz;
-            MSKint32t *subj = (MSKint32t *)calloc(numvar, sizeof(MSKint32t));
-            double *val = (double*)calloc(numvar, sizeof(double));
-        
-            MSK_getarow(task, i, &nz, subj, val);
-            for (int j = 0; j < nz; ++j) {
-                lhs += val[j] * xx[subj[j]];
-            }
-        
-            // Now compare lhs to blc[i] and buc[i]
-            double tol = 1e-5;
-            MSKboundkeye bk;
-            double bl, bu;
-            MSK_getconbound(task, i, &bk, &bl, &bu);
-            double slack = 0;
-        
-            if (bk == MSK_BK_UP || bk == MSK_BK_RA) {
-                slack = fabs(lhs - bu);
-            }
-            if (bk == MSK_BK_LO || bk == MSK_BK_RA) {
-                slack = fabs(lhs - bl);
-            }
-
-            Constraint *c = constraints_in_model_by_ID[i];
-            if (c != nullptr && c->name.length() > 0 && c->name[0] == 'G')
-            {
-                c->slacks.push_back(make_pair(test_run, slack));
-
-                if (slack < tol)
-                {
-                    bindingCount++;
-                    c->last_tight_iter = test_run;
-                    if (c->would_be_removed)
-                    {
-                        c->would_be_removed = false;
-                        incorrect_constraint_removal++;
-                    }
-                    c->active = true;
-                    binding_constraints.push_back(c);
-                }    
-                else
-                {
-                    c->active = false;
-                }
-
-                if (c->would_be_removed == false)
-                {
-                    if (std::abs(slack) > tol && (test_run-c->last_tight_iter > 10) )
-                    {
-                        c->would_be_removed = true;
-                        attempted_constraint_removals += 1;
-                    }
-                }            
-
-            }
-            
-            free(subj);
-            free(val);
-        }
-           
-        free(xx);
-        */
-        
-
-        //cout << "Would be removed  total " << attempted_constraint_removals << " incorrect " << incorrect_constraint_removal << endl;
 #endif
 
         // It may happen that sometimes when starting a program, we get an optimum worse than before.
